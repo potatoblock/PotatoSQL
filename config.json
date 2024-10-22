@@ -1,7 +1,8 @@
 {
     "users": {
         "username1": "password1",
-        "username2": "password2"
+        "username2": "password2",
+        "username3": "password3"
     },
     "port": 8001
 }
