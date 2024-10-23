@@ -6,7 +6,7 @@ import threading
 from urllib.parse import urlparse, parse_qs
 import base64
 
-DB_FILENAME = 'kv.db'
+DB_FILENAME = 'sqlite.db'
 CONFIG_FILENAME = 'config.json'
 db_lock = threading.Lock()
 
@@ -23,6 +23,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# 初始化数据库
 init_db()
 
 # 读取配置文件
@@ -32,7 +33,7 @@ def read_config():
 
 config = read_config()
 users = config['users']  # 获取用户字典
-port = config['port']  # 获取端口
+port = config['port']     # 获取端口
 
 # 数据库操作
 def db_add(key, value):
@@ -105,7 +106,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    self.wfile.write(json.dumps({key: value}).encode())
+                    # 反序列化字典或列表
+                    self.wfile.write(json.dumps({key: json.loads(value)}).encode())
                 else:
                     self.send_error(404, "Key not found")
             else:
@@ -116,8 +118,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps(all_data).encode())
-
+            # 反序列化所有数据
+            self.wfile.write(json.dumps({k: json.loads(v) for k, v in all_data.items()}).encode())
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -139,8 +141,9 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
         if url.path == '/set':
             key = post_data.get('key')
             value = post_data.get('value')
-            if key and value:
-                db_add(key, value)
+            if key and value is not None:
+                # 对字典和列表进行处理，序列化为 JSON
+                db_add(key, json.dumps(value))
                 self.send_response(201)
                 self.send_header('Content-type', 'application/json')
                 self.end_headers()
@@ -175,12 +178,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
                     self.wfile.write(json.dumps({'result': result}).encode())
-
                 except Exception as e:
                     self.send_error(400, f"SQL Error: {str(e)}")
             else:
                 self.send_error(400, "Query parameter is missing")
-
         else:
             self.send_error(404, "Endpoint not found")
 
